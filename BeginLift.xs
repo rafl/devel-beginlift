@@ -22,7 +22,7 @@ STATIC OP *dbl_ck_entersub(pTHX_ OP *o) {
   HV *stash;
   I32 type = o->op_type;
   SV *sv;
-  char* stack_save;
+  SV** stack_save;
   HV* to_lift;
   SV** to_lift_pack_ref;
   HV* to_lift_pack_hash;
