@@ -89,6 +89,11 @@ STATIC OP *dbl_ck_entersub(pTHX_ OP *o) {
     op_free(o);
     if (type == OP_RV2GV)
       return newGVOP(OP_GV, 0, (GV*)sv);
+
+    if (SvROK(sv) && sv_derived_from(sv, "B::OP"))
+        /* taken from B's typemap file, T_OP_OBJ */
+        return INT2PTR(OP *,SvIV((SV *)SvRV(sv)));
+
     return newSVOP(OP_CONST, 0, sv);
   } else {
     /* this bit not lifted, handles the 'sub doesn't return stuff' case
