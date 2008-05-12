@@ -17,9 +17,11 @@ STATIC OP *(*dbl_old_ck_entersub)(pTHX_ OP *op);
 /* replacement PL_check entersub entry */
 
 STATIC OP *dbl_ck_entersub(pTHX_ OP *o) {
+  dSP;
   OP *kid;
   OP *last;
   OP *curop;
+  OP *saved_next;
   HV *stash;
   I32 type = o->op_type;
   SV *sv;
@@ -72,27 +74,68 @@ STATIC OP *dbl_ck_entersub(pTHX_ OP *o) {
 
   /* shamelessly lifted from fold_constants in op.c */
 
-  stack_save = PL_stack_sp;
-  curop = LINKLIST(o);
-  o->op_next = 0;
-  PL_op = curop;
-  CALLRUNOPS(aTHX);
+  stack_save = SP;
 
-  if (PL_stack_sp > stack_save) { /* sub returned something */
-    sv = *(PL_stack_sp--);
+  curop = LINKLIST(o);
+
+  if (0) { /* call as macro */
+    OP *arg;
+    OP *gv;
+    /* this means the argument pushing ops are not executed, only the GV to
+     * resolve the call is, and B::OP objects will be made of all the opcodes
+     * */
+    PUSHMARK(SP); /* push a mark for the arguments */
+
+    /* push an arg for every sibling op */
+    for ( arg = curop->op_sibling; arg->op_sibling; arg = arg->op_sibling ) {
+      XPUSHs(sv_bless(newRV_inc(newSViv(PTR2IV(arg))), gv_stashpv("B::LISTOP", 0)));
+    }
+
+    /* find the last non null before the lifted entersub */
+    for ( kid = curop; kid->op_next != o; kid = kid->op_next ) {
+      if ( kid->op_type == OP_GV )
+          gv = kid;
+    }
+
+    PL_op = gv; /* make the call to our sub without evaluating the arg ops */
+  } else {
+    PL_op = curop;
+  }
+
+  /* stop right after the call */
+  saved_next = o->op_next;
+  o->op_next = NULL;
+
+  PUTBACK;
+  SAVETMPS;
+  CALLRUNOPS(aTHX);
+  SPAGAIN;
+
+  if (SP > stack_save) { /* sub returned something */
+    sv = POPs;
     if (o->op_targ && sv == PAD_SV(o->op_targ)) /* grab pad temp? */
       pad_swipe(o->op_targ,  FALSE);
     else if (SvTEMP(sv)) {      /* grab mortal temp? */
       (void)SvREFCNT_inc(sv);
       SvTEMP_off(sv);
     }
-    op_free(o);
+
+    if (SvROK(sv) && sv_derived_from(sv, "B::OP")) {
+      OP *new = INT2PTR(OP *,SvIV((SV *)SvRV(sv)));
+      new->op_sibling = NULL;
+
+      /* FIXME this is bullshit */
+      if ( (PL_opargs[new->op_type] & OA_CLASS_MASK) != OA_SVOP ) {
+        new->op_next = saved_next;
+      } else {
+        new->op_next = new;
+      }
+
+      return new;
+    }
+
     if (type == OP_RV2GV)
       return newGVOP(OP_GV, 0, (GV*)sv);
-
-    if (SvROK(sv) && sv_derived_from(sv, "B::OP"))
-        /* taken from B's typemap file, T_OP_OBJ */
-        return INT2PTR(OP *,SvIV((SV *)SvRV(sv)));
 
     return newSVOP(OP_CONST, 0, sv);
   } else {
