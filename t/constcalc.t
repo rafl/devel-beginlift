@@ -18,7 +18,7 @@ warn bar("bar")."\n";
 
 no Devel::BeginLift;
 
-foo();
+foo('');
 
 END {
   use Test::More 'no_plan';
