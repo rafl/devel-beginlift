@@ -1,0 +1,41 @@
+=== lib/Devel/BeginLift.xs
+==================================================================
+--- lib/Devel/BeginLift.xs	(revision 80093)
++++ lib/Devel/BeginLift.xs	(local)
+@@ -88,6 +88,12 @@
+     op_free(o);
+     if (type == OP_RV2GV)
+       return newGVOP(OP_GV, 0, (GV*)sv);
++
++    if (SvROK(sv) && sv_derived_from(sv, "B::OP")) {
++        /* taken from B's typemap file, T_OP_OBJ */
++        return INT2PTR(OP *,SvIV((SV *)SvRV(sv)));
++    }
++
+     return newSVOP(OP_CONST, 0, sv);
+   } else {
+     /* this bit not lifted, handles the 'sub doesn't return stuff' case
+=== t/generate.t
+==================================================================
+--- t/generate.t	(revision 80093)
++++ t/generate.t	(local)
+@@ -0,0 +1,19 @@
++use strict;
++use warnings;
++use Test::More;
++
++BEGIN {
++    plan skip_all => "B::Generate required" unless eval { require B::Generate };
++    plan 'no_plan';
++}
++
++sub foo { 
++    return B::SVOP->new("const", 0, 42);
++}
++
++use Devel::BeginLift qw(foo);
++
++sub bar { 7 + foo() }
++
++is( bar(), 49, "optree injected" );
++
