@@ -6,71 +6,18 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "hook_op_check_entersubforcv.h"
+
 /* lifted from op.c */
 
 #define LINKLIST(o) ((o)->op_next ? (o)->op_next : linklist((OP*)o))
 
-/* pointer to old PL_check entersub entry to be populated in init */
-
-STATIC OP *(*dbl_old_ck_entersub)(pTHX_ OP *op);
-
-/* replacement PL_check entersub entry */
-
-STATIC OP *dbl_ck_entersub(pTHX_ OP *o) {
+STATIC OP *lift_cb(pTHX_ OP *o, CV *cv, void *user_data) {
   dSP;
-  OP *kid;
-  OP *last;
-  OP *curop;
-  OP *saved_next;
-  HV *stash;
-  I32 type = o->op_type;
   SV *sv;
-  SV** stack_save;
-  HV* to_lift;
-  SV** to_lift_pack_ref;
-  HV* to_lift_pack_hash;
-  SV** to_lift_flag_ref;
-
-  o = dbl_old_ck_entersub(aTHX_ o); /* let the original do its job */
-
-  kid = cUNOPo->op_first;
-
-  if (kid->op_type != OP_NULL) /* pushmark for method call ... */
-    return o;
-
-  last = kLISTOP->op_last;
-
-  if (last->op_type != OP_NULL) /* not what we expected */
-    return o;
-
-  kid = cUNOPx(last)->op_first;
-
-  if (kid->op_type != OP_GV) /* not a GV so ignore */
-    return o;
-
-  stash = GvSTASH(kGVOP_gv);
-
-  /* printf("Calling GV %s -> %s\n",
-    HvNAME(stash), GvNAME(kGVOP_gv)); */
-
-  to_lift = get_hv("Devel::BeginLift::lift", FALSE);
-
-  if (!to_lift)
-    return o;
-
-  to_lift_pack_ref = hv_fetch(to_lift, HvNAME(stash), strlen(HvNAME(stash)),
-                               FALSE);
-
-  if (!to_lift_pack_ref || !SvROK(*to_lift_pack_ref))
-    return o; /* not a hashref */
-
-  to_lift_pack_hash = (HV*) SvRV(*to_lift_pack_ref);
-
-  to_lift_flag_ref = hv_fetch(to_lift_pack_hash, GvNAME(kGVOP_gv),
-                                strlen(GvNAME(kGVOP_gv)), FALSE);
-
-  if (!to_lift_flag_ref || !SvTRUE(*to_lift_flag_ref))
-    return o;
+  SV **stack_save;
+  OP *curop, *kid, *saved_next;
+  I32 type = o->op_type;
 
   /* shamelessly lifted from fold_constants in op.c */
 
@@ -146,25 +93,18 @@ STATIC OP *dbl_ck_entersub(pTHX_ OP *o) {
   }
 }
 
-static int initialized = 0;
-
 MODULE = Devel::BeginLift  PACKAGE = Devel::BeginLift
 
 PROTOTYPES: DISABLE
 
-void
-setup()
+UV
+_setup (CV *cv)
   CODE:
-  if (!initialized++) {
-    dbl_old_ck_entersub = PL_check[OP_ENTERSUB];
-    PL_check[OP_ENTERSUB] = dbl_ck_entersub;
-  }
+    RETVAL = (UV)hook_op_check_entersubforcv (cv, lift_cb, NULL);
+  OUTPUT:
+    RETVAL
 
 void
-teardown()
+_teardown (UV id)
   CODE:
-  /* ensure we only uninit when number of teardown calls matches 
-     number of setup calls */
-  if (initialized && !--initialized) {
-    PL_check[OP_ENTERSUB] = dbl_old_ck_entersub;
-  }
+    hook_op_check_entersubforcv_remove ((hook_op_check_id)id);

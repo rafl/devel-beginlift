@@ -8,6 +8,7 @@ our $VERSION = 0.001000;
 
 use vars qw(%lift);
 use base qw(DynaLoader);
+use B::Hooks::OP::Check::EntersubForCV;
 
 bootstrap Devel::BeginLift;
 
@@ -25,14 +26,20 @@ sub unimport {
 
 sub setup_for {
   my ($class, $target, $args) = @_;
-  setup();
-  $lift{$target}{$_} = 1 for @$args;
+  $lift{$target} ||= [];
+  push @{ $lift{$target} }, map {
+    _setup($_);
+  } map {
+    ref $_ eq 'CODE'
+      ? $_
+      : \&{ "${target}::${_}" }
+  } @{ $args };
 }
 
 sub teardown_for {
   my ($class, $target) = @_;
+  _teardown($_) for @{ $lift{$target} };
   delete $lift{$target};
-  teardown();
 }
 
 =head1 NAME
