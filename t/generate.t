@@ -6,7 +6,7 @@ use B::Utils;
 
 BEGIN {
     plan skip_all => "B::Generate required" unless eval { require B::Generate };
-    plan 'no_plan';
+    plan tests => 2;
 }
 
 sub foo {
