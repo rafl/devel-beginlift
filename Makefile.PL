@@ -5,6 +5,8 @@ use ExtUtils::Depends;
 name 'Devel-BeginLift';
 all_from 'lib/Devel/BeginLift.pm';
 
+requires 'B::Hooks::OP::Check::EntersubForCV' => '0.02';
+
 build_requires 'Test::More';
 build_requires 'B::Hooks::OP::Check::EntersubForCV';
 
