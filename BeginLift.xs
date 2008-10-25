@@ -103,13 +103,13 @@ MODULE = Devel::BeginLift  PACKAGE = Devel::BeginLift
 PROTOTYPES: DISABLE
 
 UV
-setup_for_cv (CV *cv)
+setup_for_cv (class, CV *cv)
   CODE:
     RETVAL = (UV)hook_op_check_entersubforcv (cv, lift_cb, NULL);
   OUTPUT:
     RETVAL
 
 void
-teardown_for_cv (UV id)
+teardown_for_cv (class, UV id)
   CODE:
     hook_op_check_entersubforcv_remove ((hook_op_check_id)id);

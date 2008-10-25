@@ -28,7 +28,7 @@ sub setup_for {
   my ($class, $target, $args) = @_;
   $lift{$target} ||= [];
   push @{ $lift{$target} }, map {
-    setup_for_cv($_);
+    $class->setup_for_cv($_);
   } map {
     ref $_ eq 'CODE'
       ? $_
@@ -38,7 +38,7 @@ sub setup_for {
 
 sub teardown_for {
   my ($class, $target) = @_;
-  teardown_for_cv($_) for @{ $lift{$target} };
+  $class->teardown_for_cv($_) for @{ $lift{$target} };
   delete $lift{$target};
 }
 
