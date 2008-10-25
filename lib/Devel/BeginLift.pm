@@ -111,6 +111,19 @@ Deregisters all subs currently registered for $package and uninstalls begin
 lifting magic is number of teardown_for calls matches number of setup_for
 calls.
 
+=head2 setup_for_cv
+
+  $id = Devel::BeginLift->setup_for_cv(\&code);
+
+Same as C<setup_for>, but only registers begin lifting magic for one code
+reference. Returns an id to be used in C<teardown_for_cv>.
+
+=head2 teardown_for_cv
+
+  Devel::BeginLift->teardown_for_cv($id);
+
+Deregisters begin lifting magic referred to by C<$id>.
+
 =head1 AUTHOR
 
 Matt S Trout - <mst@shadowcatsystems.co.uk>
