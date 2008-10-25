@@ -8,6 +8,7 @@ our $VERSION = 0.001000;
 
 use vars qw(%lift);
 use base qw(DynaLoader);
+use B::Hooks::OP::Check::EntersubForCV;
 
 bootstrap Devel::BeginLift;
 
@@ -25,14 +26,20 @@ sub unimport {
 
 sub setup_for {
   my ($class, $target, $args) = @_;
-  setup();
-  $lift{$target}{$_} = 1 for @$args;
+  $lift{$target} ||= [];
+  push @{ $lift{$target} }, map {
+    $class->setup_for_cv($_);
+  } map {
+    ref $_ eq 'CODE'
+      ? $_
+      : \&{ "${target}::${_}" }
+  } @{ $args };
 }
 
 sub teardown_for {
   my ($class, $target) = @_;
+  $class->teardown_for_cv($_) for @{ $lift{$target} };
   delete $lift{$target};
-  teardown();
 }
 
 =head1 NAME
@@ -103,6 +110,19 @@ and replaced with its output rather than left for runtime.
 Deregisters all subs currently registered for $package and uninstalls begin
 lifting magic is number of teardown_for calls matches number of setup_for
 calls.
+
+=head2 setup_for_cv
+
+  $id = Devel::BeginLift->setup_for_cv(\&code);
+
+Same as C<setup_for>, but only registers begin lifting magic for one code
+reference. Returns an id to be used in C<teardown_for_cv>.
+
+=head2 teardown_for_cv
+
+  Devel::BeginLift->teardown_for_cv($id);
+
+Deregisters begin lifting magic referred to by C<$id>.
 
 =head1 AUTHOR
 
