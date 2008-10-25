@@ -84,6 +84,11 @@ STATIC OP *lift_cb(pTHX_ OP *o, CV *cv, void *user_data) {
     if (type == OP_RV2GV)
       return newGVOP(OP_GV, 0, (GV*)sv);
 
+	if (SvTYPE(sv) == SVt_NULL) {
+		op_free(o);
+		return newOP(OP_NULL, 0);
+	}
+
     return newSVOP(OP_CONST, 0, sv);
   } else {
     /* this bit not lifted, handles the 'sub doesn't return stuff' case
