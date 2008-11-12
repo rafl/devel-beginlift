@@ -2,10 +2,9 @@ use strict;
 use warnings;
 use Test::More;
 
-use B::Utils;
-
 BEGIN {
     plan skip_all => "B::Generate required" unless eval { require B::Generate };
+    plan skip_all => "B::Utils required" unless eval { require B::Utils };
     plan tests => 2;
 }
 
